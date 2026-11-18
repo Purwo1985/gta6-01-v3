@@ -1,53 +1,31 @@
-// Keyboard and pointer input. Held keys give a steering direction; one-shot presses (start or
-// restart, pause) are queued as bit flags and taken once by the loop, so a press between two
-// frames is never lost and never counted twice.
-
-export const ACTION_CONFIRM = 1;
-export const ACTION_PAUSE = 2;
-
-const LEFT = new Set(['ArrowLeft', 'KeyA']);
-const RIGHT = new Set(['ArrowRight', 'KeyD']);
-const CONFIRM = new Set(['Space', 'Enter']);
-const PAUSE = new Set(['KeyP', 'Escape']);
-
-export function createInput(target) {
-  let left = false;
-  let right = false;
-  let actions = 0;
-
-  window.addEventListener('keydown', (event) => {
-    if (LEFT.has(event.code)) left = true;
-    else if (RIGHT.has(event.code)) right = true;
-    else if (CONFIRM.has(event.code)) {
-      if (!event.repeat) actions |= ACTION_CONFIRM;
-    } else if (PAUSE.has(event.code)) {
-      if (!event.repeat) actions |= ACTION_PAUSE;
-    } else return;
-    event.preventDefault();
-  });
-  window.addEventListener('keyup', (event) => {
-    if (LEFT.has(event.code)) left = false;
-    else if (RIGHT.has(event.code)) right = false;
-  });
-  // A key released while the tab is hidden never sends keyup: let go of everything on blur.
-  window.addEventListener('blur', () => {
-    left = false;
-    right = false;
-  });
-  target.addEventListener('pointerdown', () => {
-    actions |= ACTION_CONFIRM;
-  });
-
-  return {
-    /** -1 for left, 1 for right, 0 for neither or both. */
-    direction() {
-      return (right ? 1 : 0) - (left ? 1 : 0);
-    },
-    /** The one-shot presses since the last call, as ACTION_* flags. */
-    takeActions() {
-      const taken = actions;
-      actions = 0;
-      return taken;
-    },
-  };
+// IRON TIDE — input: keyboard state with edge detection. The game polls
+// held keys every step and asks "was this just pressed?" for one-shot
+// actions (enter car, punch, radio, weapon swap). Pointer lock is not
+// used — the mouse only steers the camera when the player drags.
+export class Input {
+  constructor() {
+    this.keys = new Set();
+    this.pressed = new Set();
+    this.dragX = 0;
+    this.dragging = false;
+    this._lastX = 0;
+    window.addEventListener('keydown', (e) => {
+      if (e.repeat) return;
+      this.keys.add(e.code);
+      this.pressed.add(e.code);
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'Tab'].includes(e.code)) e.preventDefault();
+    });
+    window.addEventListener('keyup', (e) => this.keys.delete(e.code));
+    window.addEventListener('blur', () => { this.keys.clear(); this.pressed.clear(); });
+    const canvas = document.getElementById('gl');
+    canvas.addEventListener('mousedown', (e) => { this.dragging = true; this._lastX = e.clientX; });
+    window.addEventListener('mouseup', () => { this.dragging = false; });
+    window.addEventListener('mousemove', (e) => {
+      if (this.dragging) { this.dragX += e.clientX - this._lastX; this._lastX = e.clientX; }
+    });
+  }
+  held(...codes) { return codes.some((c) => this.keys.has(c)); }
+  tap(...codes) { return codes.some((c) => this.pressed.has(c)); }
+  consume() { this.pressed.clear(); this.dragX = 0; }
+  axis(neg, pos) { return (this.keys.has(pos) ? 1 : 0) - (this.keys.has(neg) ? 1 : 0); }
 }

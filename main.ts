@@ -1,12 +1,20 @@
-// A working gta6-01 entry (Node 22, standard library only): the game is this directory's
-// game/ folder, plain static files a desktop browser loads offline (game/index.html and its ES
-// modules, no library and no network request), and the program hands it in. It copies game/ and
-// screenshots/ from beside this file to /output and writes /output/dossier.json, the summary the
-// judge reads, with the vendored make.fun library. Only the plumbing, not an open world: Block
-// Dodger, a plain 2D canvas game where a paddle dodges falling blocks and catches coins, with a
-// title screen, score, lives and levels, game over and restart, flat colours and no sound. Build
-// your own open-world crime game in its place (three.js or any library you vendor under game/),
-// put your 3 or 4 PNG or JPEG screenshots in screenshots/ (the first by name is the cover) and run it.
+// IRON TIDE — main.ts: the entrypoint that hands the game in.
+//
+// The game is this directory's game/ folder: plain static files a desktop
+// browser loads offline (game/index.html and its ES modules, three.js r160
+// vendored under game/vendor/, no network request), plus four real
+// screenshots of the game in screenshots/. This program copies game/ and
+// screenshots/ from beside this file to /output and writes
+// /output/dossier.json, the summary the judge reads, with the vendored
+// make.fun library.
+//
+// IRON TIDE is an original open-world crime game: Mara Voss, twelve story
+// missions across fourteen named districts of the port city Rustport,
+// five-star wanted chases with roadblocks and a helicopter, eight
+// drivable vehicle kinds with NOS, a two-person crew, three street races,
+// taxi fares, vigilante work, twenty hidden packages, stunt jumps, a
+// day/night cycle with rain, four procedural radio stations, garage
+// upgrades and three safehouses.
 //
 // Serve it locally with `node serve.ts`, then open http://localhost:8080.
 // Outside the grader's container, MAKEFUN_OUTPUT_DIR stands in for /output:

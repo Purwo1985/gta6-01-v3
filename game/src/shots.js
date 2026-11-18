@@ -1,79 +1,88 @@
-// The screenshot scenes behind ?shot=start|play|end. Each one plays the real rules forward from a
-// fresh world for a fixed number of steps, steered by a simple autopilot (look ahead each way the
-// paddle could move, keep clear of blocks, chase the lowest coin when that is safe), so the frame
-// is what a short game really looks like and the same seed always gives the same frame.
-import { FIELD, PLAYER, STEP } from './config.js';
-import { EVENT_OVER, KIND_BLOCK } from './world.js';
-import { SCREEN_OVER, SCREEN_PLAY, SCREEN_TITLE } from './render.js';
+// IRON TIDE — shots: the four screenshot scenes. Each one stages the
+// real game — the real city, the real systems, a short autopilot drive
+// — and then lets it render, so every screenshot is a frame the game
+// itself produced, never a mock-up. ?shot=chase|street|mission|start
+// picks one; the URL seed keeps the city identical between runs.
+import { STEP } from './tuning.js';
 
-const START_SECONDS = 5;
-const PLAY_SECONDS = 26;
-const END_LIMIT_SECONDS = 600;
-/**
- * How far ahead, in seconds, the autopilot checks each way it could move: the play scene's pilot
- * looks well ahead and keeps all its lives; the end scene's looks only a moment ahead, so it is
- * caught out once the blocks speed up, as a hurried player is.
- */
-const HORIZON_PLAY = 0.7;
-const HORIZON_END = 0.25;
-const SAMPLE = 1 / 30;
-const DIRECTIONS = [0, -1, 1];
-/** Extra room, each side, it keeps between the paddle and a block. */
-const MARGIN = 10;
-
-/** Seconds until moving in `direction` (-1, 0, 1) runs the paddle into a block; Infinity when it never does. */
-function timeToHit(state, direction, horizon) {
-  const player = state.player;
-  for (let t = SAMPLE; t <= horizon; t += SAMPLE) {
-    const x = Math.min(FIELD.width - player.width, Math.max(0, player.x + direction * PLAYER.speed * t));
-    for (let index = 0; index < state.items.length; index += 1) {
-      const item = state.items[index];
-      if (!item.active || item.kind !== KIND_BLOCK) continue;
-      const y = item.y + item.speed * t;
-      if (y + item.height > player.y && y < player.y + player.height && item.x < x + player.width + MARGIN && item.x + item.width > x - MARGIN) return t;
-    }
+function driveForward(game, seconds) {
+  const ticks = Math.floor(seconds / STEP);
+  for (let i = 0; i < ticks; i += 1) {
+    game.debugDrive({ forward: 1, steer: 0 });
+    game.step(STEP, false);
   }
-  return Infinity;
 }
 
-/** Of the safe ways to move, the one toward the lowest coin (or the centre); else the one that is hit last. */
-function autopilot(state, horizon) {
-  const player = state.player;
-  let coin = null;
-  for (let index = 0; index < state.items.length; index += 1) {
-    const item = state.items[index];
-    if (item.active && item.kind !== KIND_BLOCK && (coin === null || item.y > coin.y)) coin = item;
+function walkForward(game, seconds) {
+  const ticks = Math.floor(seconds / STEP);
+  for (let i = 0; i < ticks; i += 1) {
+    game.debugWalk({ forward: 1 });
+    game.step(STEP, false);
   }
-  const target = coin === null ? FIELD.width / 2 : coin.x + coin.width / 2;
-  const centre = player.x + player.width / 2;
-  const wanted = target > centre + 8 ? 1 : target < centre - 8 ? -1 : 0;
-  let best = wanted;
-  let bestTime = timeToHit(state, wanted, horizon);
-  for (let index = 0; index < DIRECTIONS.length && bestTime !== Infinity; index += 1) {
-    const time = timeToHit(state, DIRECTIONS[index], horizon);
-    if (time > bestTime) {
-      bestTime = time;
-      best = DIRECTIONS[index];
-    }
-  }
-  return best;
 }
 
-/**
- * Set `world` to the named scene (start, play or end; any other name is start) and return the
- * screen to draw over it and the best score to show.
- */
-export function stageShot(name, world) {
-  world.reset();
-  if (name !== 'play' && name !== 'end') {
-    for (let index = 0; index < START_SECONDS / STEP; index += 1) world.step(STEP, 0, true);
-    return { screen: SCREEN_TITLE, best: 0 };
-  }
-  const limit = name === 'end' ? END_LIMIT_SECONDS : PLAY_SECONDS;
-  const horizon = name === 'end' ? HORIZON_END : HORIZON_PLAY;
-  for (let index = 0; index < limit / STEP; index += 1) {
-    if (world.step(STEP, autopilot(world.state, horizon), false) & EVENT_OVER) break;
-  }
-  const over = world.state.lives === 0;
-  return { screen: over ? SCREEN_OVER : SCREEN_PLAY, best: world.state.score };
+const STAGES = {
+  chase(game) {
+    // Cover shot: five stars on the steel bridge at dusk, two patrol
+    // cars closing in and the helicopter overhead, the skyline ahead.
+    game.debugPlaceCar(300, 0, -Math.PI / 2);
+    game.debugSetWanted(5);
+    game.debugSetTime(18.4);
+    game.debugCamera('chase');
+    driveForward(game, 1.4);
+    game.debugSpawnPolice(2);
+    // pull one patrol car into view ahead on the bridge, so the chase
+    // reads in a single frame instead of only behind the camera
+    const lead = game.police.cars[0];
+    if (lead) {
+      lead.pos.set(game.player.pos.x - 26, 0, 2);
+      lead.heading = -Math.PI / 2;
+      lead.speed = 10;
+    }
+    driveForward(game, 0.7);
+    return 'play';
+  },
+  street(game) {
+    // On foot in Old Town at night: crowd, traffic, neon shop signs.
+    // Mara starts ON the north-south road at x=40 (a road centreline),
+    // so the walk camera stays on asphalt instead of inside a block.
+    game.debugSetTime(21.5);
+    game.debugStartMission(0);
+    game.debugPlacePlayer(40, -92);
+    // crowd on the east sidewalk, clear of the camera-player sightline
+    // so Mara herself stays visible in the middle of the frame
+    game.debugGatherWalkers(54, -100, 10);
+    game.debugCamera('walk');
+    walkForward(game, 1.5);
+    return 'play';
+  },
+  mission(game) {
+    // The Big Score in progress: Mara driving into Portside with the
+    // gold beacon ahead and the crew riding along. She starts on the
+    // north-south road at x=-190 heading for the container vault, so
+    // the drive stays on asphalt instead of into a building block.
+    game.debugSetTime(17.2);
+    game.debugStartMission(10);
+    game.debugPlaceCar(-190, -120, Math.PI);
+    game.debugCamera('chase');
+    driveForward(game, 1.8);
+    return 'play';
+  },
+  start(game) {
+    // Aerial view of the whole port city at golden hour, title on top.
+    // Many steps so the aerial camera finishes its slow lerp from the
+    // origin to its high perch before the frame is taken.
+    game.debugSetTime(17.8);
+    game.debugCamera('aerial');
+    for (let i = 0; i < 120; i += 1) game.step(STEP, false);
+    return 'start';
+  },
+};
+
+// Stage `name` on a fresh game and hand back the screen the HUD should
+// show over the finished frame.
+export function stageShot(name, game) {
+  game.resetWorld();
+  const stage = STAGES[name] ?? STAGES.start;
+  return stage(game);
 }

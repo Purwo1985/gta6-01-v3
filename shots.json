@@ -1,5 +1,1 @@
-[
-  { "name": "1-start.jpg", "query": "?shot=start&seed=1" },
-  { "name": "2-play.jpg", "query": "?shot=play&seed=1" },
-  { "name": "3-end.jpg", "query": "?shot=end&seed=1" }
-]
+{"shots":[{"description":"Five-star chase on the steel bridge at dusk — patrol cars closing in, police helicopter overhead, Rustport skyline ahead.","name":"1-chase.jpg","query":"?shot=chase&seed=1"},{"description":"Mara Voss on foot in Old Town at night — pedestrians, traffic, neon shop signs, full HUD.","name":"2-street.jpg","query":"?shot=street&seed=1"},{"description":"The Big Score in progress — Mara driving into Portside with the gold mission beacon ahead and the crew riding along.","name":"3-mission.jpg","query":"?shot=mission&seed=1"},{"description":"Aerial view of the whole port city of Rustport at golden hour with the title screen.","name":"4-start.jpg","query":"?shot=start&seed=1"}]}
